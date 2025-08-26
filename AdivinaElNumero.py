@@ -1,92 +1,107 @@
+import tkinter as tk
 import random
-import sys
+from tkinter import messagebox
 
-BANNER = r"""
-  __ _           _ _                 _             _              
- / _(_)         | (_)               | |           | |             
-| |_ _ _ __   __| |_ _ __   ___  ___| |_ _ __ __ _| |_ ___  _ __  
-|  _| | '_ \ / _` | | '_ \ / _ \/ __| __| '__/ _` | __/ _ \| '__| 
-| | | | | | | (_| | | | | |  __/\__ \ |_| | | (_| | || (_) | |    
-|_| |_|_| |_|\__,_|_|_| |_|\___||___/\__|_|  \__,_|\__\___/|_|    
-                                                                  
-"""
+class AdivinaNumeroGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Juego: Adivina el número")
+        self.root.geometry("400x300")
+        self.root.resizable(False, False)
 
+        self.victorias = 0
+        self.partidas = 0
+        self.limite_intentos = 0
+        self.intentos_realizados = 0
+        self.secreto = 0
 
-def elegir_dificultad():
-    print("\nElige la dificultad:")
-    print("1) Fácil    (10 intentos)")
-    print("2) Normal   (7 intentos)")
-    print("3) Difícil  (5 intentos)")
-    while True:
-        opcion = input("> ").strip()
-        if opcion in {"1", "2", "3"}:
-            return {"1": 10, "2": 7, "3": 5}[opcion]
-        print("Opción inválida. Escribe 1, 2 o 3.")
+        self.crear_widgets_inicio()
 
+    def crear_widgets_inicio(self):
+        self.limpiar_ventana()
+        label = tk.Label(self.root, text="Elige la dificultad", font=("Arial", 14))
+        label.pack(pady=20)
 
-def leer_int(mensaje, minimo, maximo):
-    while True:
-        valor = input(mensaje).strip()
-        if valor.lower() in {"salir", "exit", "q"}:
-            print("¡Hasta luego!")
-            sys.exit(0)
-        try:
-            n = int(valor)
-            if minimo <= n <= maximo:
-                return n
-            else:
-                print(f"Escribe un número entre {minimo} y {maximo}.")
-        except ValueError:
-            print("Eso no parece un número válido.")
+        tk.Button(self.root, text="Fácil (10 intentos)", command=lambda: self.iniciar_partida(10)).pack(pady=5)
+        tk.Button(self.root, text="Normal (7 intentos)", command=lambda: self.iniciar_partida(7)).pack(pady=5)
+        tk.Button(self.root, text="Difícil (5 intentos)", command=lambda: self.iniciar_partida(5)).pack(pady=5)
 
+    def iniciar_partida(self, intentos):
+        self.limite_intentos = intentos
+        self.intentos_realizados = 0
+        self.secreto = random.randint(1, 100)
 
-def pista(dist):
-    if dist == 0:
-        return "¡Correcto!"
-    if dist <= 2:
-        return "🔥 Muy cerca"
-    if dist <= 5:
-        return "🌶️ Caliente"
-    if dist <= 10:
-        return "🌤️ Tibio"
-    return "🧊 Frío"
+        self.limpiar_ventana()
 
+        tk.Label(self.root, text="He pensado un número del 1 al 100", font=("Arial", 12)).pack(pady=10)
 
-def jugar_una_partida():
-    limite_intentos = elegir_dificultad()
-    secreto = random.randint(1, 100)
-    print("\nHe pensado un número del 1 al 100. ¡Adivínalo!")
-    print("(Escribe 'salir' para terminar en cualquier momento)\n")
+        self.entry = tk.Entry(self.root, font=("Arial", 12))
+        self.entry.pack(pady=5)
 
-    for intento in range(1, limite_intentos + 1):
-        guess = leer_int(f"Intento {intento}/{limite_intentos} -> Tu número: ", 1, 100)
-        if guess == secreto:
-            print(f"\n🎉 ¡Ganaste! El número era {secreto}.")
-            print(f"Lo lograste en {intento} intento(s).")
-            return True
+        tk.Button(self.root, text="Probar", command=self.probar_numero).pack(pady=5)
+
+        self.feedback = tk.Label(self.root, text="", font=("Arial", 12))
+        self.feedback.pack(pady=10)
+
+        self.intentos_label = tk.Label(self.root, text=f"Intentos restantes: {self.limite_intentos}", font=("Arial", 12))
+        self.intentos_label.pack(pady=10)
+
+    def probar_numero(self):
+        valor = self.entry.get().strip()
+        if not valor.isdigit():
+            messagebox.showwarning("Error", "Ingresa un número válido entre 1 y 100")
+            return
+
+        guess = int(valor)
+        if guess < 1 or guess > 100:
+            messagebox.showwarning("Error", "El número debe estar entre 1 y 100")
+            return
+
+        self.intentos_realizados += 1
+        intentos_restantes = self.limite_intentos - self.intentos_realizados
+
+        if guess == self.secreto:
+            self.victorias += 1
+            self.partidas += 1
+            messagebox.showinfo("Ganaste!", f"🎉 ¡Correcto! El número era {self.secreto} en {self.intentos_realizados} intento(s).")
+            self.jugar_de_nuevo()
+            return
         else:
-            dist = abs(guess - secreto)
-            consejo = "📉 Demasiado bajo" if guess < secreto else "📈 Demasiado alto"
-            print(f"{consejo} · {pista(dist)}\n")
+            dist = abs(guess - self.secreto)
+            consejo = "Demasiado bajo" if guess < self.secreto else "Demasiado alto"
+            self.feedback.config(text=f"{consejo} · {self.pista(dist)}")
 
-    print(f"\n🤖 Me ganaste… El número era {secreto}.")
-    return False
+        if intentos_restantes <= 0:
+            self.partidas += 1
+            messagebox.showinfo("Perdiste", f"🤖 Me ganaste… El número era {self.secreto}.")
+            self.jugar_de_nuevo()
+        else:
+            self.intentos_label.config(text=f"Intentos restantes: {intentos_restantes}")
 
+    def pista(self, dist):
+        if dist == 0:
+            return "¡Correcto!"
+        if dist <= 2:
+            return "🔥 Muy cerca"
+        if dist <= 5:
+            return "🌶️ Caliente"
+        if dist <= 10:
+            return "🌤️ Tibio"
+        return "🧊 Frío"
 
-def jugar():
-    print(BANNER)
-    victorias = 0
-    partidas = 0
-    while True:
-        gano = jugar_una_partida()
-        partidas += 1
-        victorias += int(gano)
-        print(f"\nMarcador: {victorias} victoria(s) de {partidas} partida(s).")
-        otra = input("\n¿Quieres jugar otra vez? (s/n): ").strip().lower()
-        if otra not in {"s", "si", "sí", "y", "yes"}:
-            print("\nGracias por jugar. ¡Hasta la próxima!")
-            break
+    def jugar_de_nuevo(self):
+        respuesta = messagebox.askyesno("Jugar otra vez", f"Marcador: {self.victorias} victoria(s) de {self.partidas} partida(s).\n\n¿Quieres jugar otra vez?")
+        if respuesta:
+            self.crear_widgets_inicio()
+        else:
+            self.root.quit()
+
+    def limpiar_ventana(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
 
 
 if __name__ == "__main__":
-    jugar()
+    root = tk.Tk()
+    app = AdivinaNumeroGUI(root)
+    root.mainloop()
